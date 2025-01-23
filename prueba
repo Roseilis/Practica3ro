@@ -1,0 +1,60 @@
+from fastapi import FastAPI, File, UploadFile
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+import pandas as pd
+import os
+
+# Crear instancia de FastAPI
+app = FastAPI()
+
+# Configuración de archivos estáticos
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Ruta de inicio
+@app.get("/", response_class=HTMLResponse)
+async def home():
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Sistema Médico AI</title>
+        <style>
+            body {
+                background-color: #e6ffe6;
+                text-align: center;
+                font-family: Arial, sans-serif;
+            }
+            h1 {
+                color: #2d6a4f;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Bienvenido al Sistema Médico AI</h1>
+        <img src="/static/hospital.jpg" alt="Hospital" width="300">
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
+
+# Ruta para subir archivos Excel
+@app.post("/upload/")
+async def upload_excel(file: UploadFile = File(...)):
+    try:
+        # Guardar el archivo temporalmente
+        file_location = f"temp_{file.filename}"
+        with open(file_location, "wb") as f:
+            f.write(await file.read())
+
+        # Leer el archivo Excel con pandas
+        df = pd.read_excel(file_location)
+
+        # Convertir los datos a JSON
+        data = df.to_dict(orient="records")
+
+        # Eliminar el archivo temporal
+        os.remove(file_location)
+
+        return JSONResponse(content={"message": "Archivo procesado correctamente.", "data": data})
+    except Exception as e:
+        return {"error": str(e)}
